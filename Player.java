@@ -1,4 +1,4 @@
-package sail.default1;
+package sail.g3;
 
 import sail.sim.Point;
 import sail.sim.Simulator;
