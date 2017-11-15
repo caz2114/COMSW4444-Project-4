@@ -11,6 +11,7 @@ public class Player extends sail.sim.Player {
     Random gen;
     int id;
     Point initial;
+    double windDir;
 
     @Override
     public Point chooseStartingLocation(Point wind_direction, Long seed, int t) {
