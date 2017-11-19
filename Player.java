@@ -12,6 +12,31 @@ public class Player extends sail.sim.Player {
     int id;
     Point initial;
     double windDir;
+    List<Point> prevGroupLocations;
+    List<Point> groupMoves;
+    
+    private List<Double> getTargetWeights() {
+        List<Double> weights = new ArrayList<Double>();
+        for (int i = 0; i < targets.size(); i++) {
+            if (visited_set.get(id).contains(i)) {
+                weights.add(-1.0);
+            } else {
+                weights.add(1.0);
+            }
+        }
+        return weights;
+    }
+    
+    private List<Point> calculateMoves(List<Point> initialLocations, List<Point> finalLocations) {
+        ArrayList<Point> moves = new ArrayList<Point>();
+        for (int i = 0; i < initialLocations.size(); i++) {
+            Point init = initialLocations.get(i);
+            Point fin = finalLocations.get(i);
+            Point move = new Point(fin.x - init.x, fin.y - init.y);
+            moves.add(move);
+        }
+        return moves;
+    }
 
     @Override
     public Point chooseStartingLocation(Point wind_direction, Long seed, int t) {
@@ -27,10 +52,12 @@ public class Player extends sail.sim.Player {
     public void init(List<Point> group_locations, List<Point> targets, int id) {
         this.targets = targets;
         this.id = id;
+        this.prevGroupLocations = group_locations;
     }
 
     @Override
     public Point move(List<Point> group_locations, int id, double dt, long time_remaining_ms) {
+        this.groupMoves = calculateMoves(this.prevGroupLocations, group_locations);
         // testing timeouts... 
         // try {
         //     TimeUnit.MILLISECONDS.sleep(1);
@@ -38,6 +65,7 @@ public class Player extends sail.sim.Player {
         //     ;
         // }
         // just for first turn
+        prevGroupLocations = group_locations;
         if(visited_set == null) {
             return Point.getDirection(group_locations.get(id), targets.get(0));
 
