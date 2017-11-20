@@ -145,11 +145,11 @@ public class Player extends sail.sim.Player {
 				}
 				currentTargetIdx = highestIdx;
 			}
-            return moveToTarget();
+            return moveToTarget(dt);
         }
     }
 	
-	private Point moveToTarget(){
+	private Point moveToTarget(double dt){
 		Point pos;
 		if(groupLocations == null)
 			pos = initial;
@@ -164,8 +164,8 @@ public class Player extends sail.sim.Player {
 		for(double i = straightAngle; i<=perpAngle; i+= .1){
 			double x = 2.5 * Math.cos(i) - 0.5;
 			double y = 5 * Math.sin(i);
-			double newX = pos.x + (x*.015);
-			double newY = pos.y + (y*.015);
+			double newX = pos.x + (x*dt);
+			double newY = pos.y + (y*dt);
 			
 			Point p = new Point(newX, newY);
 			
