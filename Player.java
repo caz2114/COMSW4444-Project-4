@@ -92,6 +92,10 @@ public class Player extends sail.sim.Player {
         this.id = id;
         this.numPlayers = group_locations.size();
         this.prevGroupLocations = group_locations;
+        this.visited_set = new HashMap<>();
+        for (int i = 0; i < numPlayers; i++) {
+            visited_set.put(i, new HashSet<Integer>());
+        }
     }
 
     @Override
