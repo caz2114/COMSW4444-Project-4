@@ -10,10 +10,40 @@ public class Player extends sail.sim.Player {
     Map<Integer, Set<Integer>> visited_set;
     Random gen;
     int id;
+    int numPlayers;
     Point initial;
-    double windDir;
+    Point wind_direction;
     List<Point> prevGroupLocations;
     List<Point> groupMoves;
+    List<Point> groupLocations;
+    
+    public boolean playerWillReachTargetFirst(int p, Point target, int targetNum) {
+        if (visited_set.get(p).contains(targetNum)) {
+            return true;
+        }
+        if (!playerMovingToTarget(p, target)) {
+            return false;
+        }
+        if (approximateTimeToTarget(groupLocations.get(p), target) < approximateTimeToTarget(groupLocations.get(id), target)) {
+            return true;
+        }
+        return false;
+    }
+    
+    private double approximateTimeToTarget(Point pos, Point target) {
+        Point towardTarget = Point.getDirection(pos, target);
+        double speed = Simulator.getSpeed(towardTarget, wind_direction);
+        
+        return Point.getDistance(pos, target) / speed;
+    }
+    
+    private boolean playerMovingToTarget(int player, Point target) {
+        Point playerMove = groupMoves.get(player);
+        Point prevPlayerLoc = prevGroupLocations.get(player);
+        Point towardTarget = Point.getDirection(prevPlayerLoc, target);
+        
+        return Math.abs(Point.angleBetweenVectors(playerMove, towardTarget)) < Math.PI / 6.0;
+    }
     
     private List<Double> getTargetWeights() {
         List<Double> weights = new ArrayList<Double>();
@@ -21,7 +51,14 @@ public class Player extends sail.sim.Player {
             if (visited_set.get(id).contains(i)) {
                 weights.add(-1.0);
             } else {
-                weights.add(1.0);
+                Point target = targets.get(i);
+                int value = numPlayers;
+                for (int p = 0; p < numPlayers; p++) {
+                    if (playerWillReachTargetFirst(p, target, i)) {
+                        value--;
+                    }
+                }
+                weights.add(value / approximateTimeToTarget(groupLocations.get(id), target));
             }
         }
         return weights;
@@ -42,6 +79,7 @@ public class Player extends sail.sim.Player {
     public Point chooseStartingLocation(Point wind_direction, Long seed, int t) {
         // you don't have to use seed unless you want it to 
         // be deterministic (wrt input randomness)
+        this.wind_direction = wind_direction;
         gen = new Random(seed);
         initial = new Point(gen.nextDouble()*10, gen.nextDouble()*10);
         double speed = Simulator.getSpeed(initial, wind_direction);
@@ -52,12 +90,14 @@ public class Player extends sail.sim.Player {
     public void init(List<Point> group_locations, List<Point> targets, int id) {
         this.targets = targets;
         this.id = id;
+        this.numPlayers = group_locations.size();
         this.prevGroupLocations = group_locations;
     }
 
     @Override
     public Point move(List<Point> group_locations, int id, double dt, long time_remaining_ms) {
         this.groupMoves = calculateMoves(this.prevGroupLocations, group_locations);
+        this.groupLocations = group_locations;
         // testing timeouts... 
         // try {
         //     TimeUnit.MILLISECONDS.sleep(1);
