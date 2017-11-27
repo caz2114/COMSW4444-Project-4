@@ -213,9 +213,6 @@ public class Player extends sail.sim.Player {
             return Point.getDirection(group_locations.get(id), initial);
         } 
 		else{ 
-            //if we reached last target, pick a new target
-			if(visited_set.get(id).contains(currentTargetIdx))
-			{
 				List<Double> weights = getTargetWeights();
 				
 				int highestIdx = 0;
@@ -224,7 +221,7 @@ public class Player extends sail.sim.Player {
 						highestIdx = i;
 				}
 				currentTargetIdx = highestIdx;
-			}
+
             return moveToTarget(dt);
         }
     }
