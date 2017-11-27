@@ -16,7 +16,33 @@ public class Player extends sail.sim.Player {
     List<Point> prevGroupLocations;
     List<Point> groupMoves;
     List<Point> groupLocations;
-	int currentTargetIdx;
+    int currentTargetIdx;
+    HashMap<Point, List<Point>> nnMap;
+    
+    public void calculateNearestNeighbors() {
+        final int K = 5;
+        for (int i = 0; i < this.targets.size(); i++) {
+            Point target = targets.get(i);
+            PriorityQueue<Point> neighbors = new PriorityQueue<Point>(5, new Comparator<Point>() {
+                @Override
+                public int compare(Point o1, Point o2) {
+                    return new Double(approximateTimeToTarget(target, o2)).compareTo(approximateTimeToTarget(target, o1));
+                }
+            });
+            for (int j = 0; j < this.targets.size(); j++) {
+                if (i == j) {
+                    continue;
+                }
+                Point neighbor = targets.get(j);
+                neighbors.add(neighbor);
+                if (neighbors.size() > K) {
+                    neighbors.poll();
+                }
+            }
+            List<Point> neighborsList = new ArrayList<Point>(neighbors);
+            this.nnMap.put(target, neighborsList);
+        }
+    }
     
     public boolean playerWillReachTargetFirst(int p, Point target, int targetNum) {
         if (visited_set.get(p).contains(targetNum)) {
@@ -46,6 +72,31 @@ public class Player extends sail.sim.Player {
         return Math.abs(Point.angleBetweenVectors(playerMove, towardTarget)) < Math.PI / 6.0;
     }
     
+    private int estimatedValue(Point target, int targetNum) {
+        if (targetNum == -1) {
+            targetNum = this.targets.indexOf(target);
+        }
+        if (visited_set.get(id).contains(targetNum)) {
+            return 0;
+        }
+        int value = numPlayers;
+        for (int p = 0; p < numPlayers; p++) {
+            if (playerWillReachTargetFirst(p, target, targetNum)) {
+                value--;
+            }
+        }
+        return value;
+    }
+    
+    private double nnAdjustment(Point target, int targetNum) {
+        List<Point> neighbors = nnMap.get(target);
+        double total = 0.0;
+        for (Point neighbor : neighbors) {
+            total += estimatedValue(neighbor, -1) / approximateTimeToTarget(target, neighbor);
+        }
+        return total / neighbors.size();
+    }
+    
     private List<Double> getTargetWeights() {
         List<Double> weights = new ArrayList<Double>();
         for (int i = 0; i < targets.size(); i++) {
@@ -53,12 +104,8 @@ public class Player extends sail.sim.Player {
                 weights.add(-1.0);
             } else {
                 Point target = targets.get(i);
-                int value = numPlayers;
-                for (int p = 0; p < numPlayers; p++) {
-                    if (playerWillReachTargetFirst(p, target, i)) {
-                        value--;
-                    }
-                }
+                int value = estimatedValue(target, i);
+                //value += nnAdjustment(target, i);
                 weights.add(value / approximateTimeToTarget(groupLocations.get(id), target));
             }
         }
@@ -112,6 +159,8 @@ public class Player extends sail.sim.Player {
             visited_set.put(i, new HashSet<Integer>());
         }
 		this.currentTargetIdx = getClosestTarget();
+        this.nnMap = new HashMap<Point, List<Point>>();
+        calculateNearestNeighbors();
     }
 
     @Override
