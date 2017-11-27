@@ -144,7 +144,7 @@ public class Player extends sail.sim.Player {
         this.wind_direction = wind_direction;
         gen = new Random(seed);
 
-        String temp = "corner";
+        String temp = "geo_center";
         switch (temp) {
             case "geo_center" :
                 initial = new Point((double) 5,(double) 5);
