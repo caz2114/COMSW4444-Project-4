@@ -153,14 +153,14 @@ public class Player extends sail.sim.Player {
                 initial = new Point(5.0 + gen.nextDouble(), 5.0 + gen.nextDouble());
                 break;
             case "corner" :
-                if(wind_direction.x > 0){
-                    if(wind_direction.y > 0){
+                if(wind_direction.x < 0){
+                    if(wind_direction.y < 0){
                         initial = new Point(7.5,7.5);
                     } else {
                         initial = new Point(7.5,2.5);
                     }
                 } else {
-                  if(wind_direction.y > 0){
+                  if(wind_direction.y < 0){
                       initial = new Point(2.5,7.5);
                   } else {
                       initial = new Point(2.5,2.5);
