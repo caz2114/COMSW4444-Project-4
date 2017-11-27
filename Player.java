@@ -143,7 +143,38 @@ public class Player extends sail.sim.Player {
         // be deterministic (wrt input randomness)
         this.wind_direction = wind_direction;
         gen = new Random(seed);
-        initial = new Point(gen.nextDouble()*10, gen.nextDouble()*10);
+
+        String temp = "corner";
+        switch (temp) {
+            case "geo_center" :
+                initial = new Point((double) 5,(double) 5);
+                break;
+            case "geo_off_center" :
+                initial = new Point(5.0 + gen.nextDouble(), 5.0 + gen.nextDouble());
+                break;
+            case "corner" :
+                if(wind_direction.x > 0){
+                    if(wind_direction.y > 0){
+                        initial = new Point(7.5,7.5);
+                    } else {
+                        initial = new Point(7.5,2.5);
+                    }
+                } else {
+                  if(wind_direction.y > 0){
+                      initial = new Point(2.5,7.5);
+                  } else {
+                      initial = new Point(2.5,2.5);
+                  }
+                }
+                break;
+            case "speed_center" :
+                initial = new Point(0,0);
+                break;
+            default :
+                initial = new Point(gen.nextDouble()*10, gen.nextDouble()*10);
+                break;
+        }
+
         double speed = Simulator.getSpeed(initial, wind_direction);
         return initial;
     }
