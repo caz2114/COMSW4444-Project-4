@@ -6,7 +6,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.*;
 
 public class FrequencyBucket {
-  HashMap<Point><int> contained_points;
+  HashMap<Point,Integer> contained_points;
   private int total_score = 0;
   private double x_0;
   private double x_1;
@@ -18,6 +18,7 @@ public class FrequencyBucket {
     this.x_1 = x_1;
     this.y_0 = y_0;
     this.y_1 = y_1;
+    contained_points = new HashMap();
   }
 
   public void inBucket(Point target, int score){
@@ -32,5 +33,9 @@ public class FrequencyBucket {
       total_score += score;
     }
     return total_score;
+  }
+
+  public String toString(){
+    return "Boundary: ("+this.x_0+","+this.y_0+") and ("+this.x_1+","+this.y_1+")\nContains: "+this.contained_points + "\n\n";
   }
 }

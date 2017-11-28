@@ -198,8 +198,8 @@ public class Player extends sail.sim.Player {
         calculateNearestNeighbors();
 
         this.frequencyBucket = new FrequencyBucket[4][4];
-        for (int i = 0; i < this.frequencyBucket[0]; i++){
-          for (int j = 0; j < this.frequencyBucket; j++){
+        for (int i = 0; i < this.frequencyBucket[0].length; i++){
+          for (int j = 0; j < this.frequencyBucket.length; j++){
             double lower_x = ((double) i ) * 2.5;
             double upper_x = ((double) i + 1 ) * 2.5;
             double lower_y = ((double) i ) * 2.5;
@@ -209,14 +209,19 @@ public class Player extends sail.sim.Player {
         }
         addToFrequencyBuckey(targets);
 
+        for (int i = 0; i < this.frequencyBucket[0].length; i++){
+          for (int j = 0; j < this.frequencyBucket.length; j++){
+            System.out.print(this.frequencyBucket[i][j]);
+          }
+        }
 
     }
 
     public void addToFrequencyBuckey(List<Point> targets){
-      for (int i = 0; i < this.frequencyBucket[0]; i++){
-        for (int j = 0; j < this.frequencyBucket; j++){
+      for (int i = 0; i < this.frequencyBucket[0].length; i++){
+        for (int j = 0; j < this.frequencyBucket.length; j++){
           for (Point target : targets){
-            this.frequencyBucket[i][j].inBucket(target, this.numPlayers));
+            this.frequencyBucket[i][j].inBucket(target, this.numPlayers);
           }
         }
       }
