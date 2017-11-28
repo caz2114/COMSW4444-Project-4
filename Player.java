@@ -19,6 +19,9 @@ public class Player extends sail.sim.Player {
     int currentTargetIdx;
     HashMap<Point, List<Point>> nnMap;
 
+    FrequencyBucket[][] frequencyBucket;
+
+
     public void calculateNearestNeighbors() {
         final int K = 5;
         for (int i = 0; i < this.targets.size(); i++) {
@@ -193,6 +196,30 @@ public class Player extends sail.sim.Player {
 		    this.currentTargetIdx = getClosestTarget();
         this.nnMap = new HashMap<Point, List<Point>>();
         calculateNearestNeighbors();
+
+        this.frequencyBucket = new FrequencyBucket[4][4];
+        for (int i = 0; i < this.frequencyBucket[0]; i++){
+          for (int j = 0; j < this.frequencyBucket; j++){
+            double lower_x = ((double) i ) * 2.5;
+            double upper_x = ((double) i + 1 ) * 2.5;
+            double lower_y = ((double) i ) * 2.5;
+            double upper_y = ((double) i + 1 ) * 2.5;
+            this.frequencyBucket[i][j] = new FrequencyBucket(lower_x, upper_x, lower_y, upper_y);
+          }
+        }
+        addToFrequencyBuckey(targets);
+
+
+    }
+
+    public void addToFrequencyBuckey(List<Point> targets){
+      for (int i = 0; i < this.frequencyBucket[0]; i++){
+        for (int j = 0; j < this.frequencyBucket; j++){
+          for (Point target : targets){
+            this.frequencyBucket[i][j].inBucket(target, this.numPlayers));
+          }
+        }
+      }
     }
 
     @Override
