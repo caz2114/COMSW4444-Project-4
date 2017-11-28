@@ -92,7 +92,7 @@ public class Player extends sail.sim.Player {
         List<Point> neighbors = nnMap.get(target);
         double total = 0.0;
         for (Point neighbor : neighbors) {
-            total += estimatedValue(neighbor, -1) / approximateTimeToTarget(target, neighbor);
+            total += estimatedValue(neighbor, -1) / Math.sqrt(approximateTimeToTarget(target, neighbor));
         }
         return total / neighbors.size();
     }
@@ -105,8 +105,8 @@ public class Player extends sail.sim.Player {
             } else {
                 Point target = targets.get(i);
                 int value = estimatedValue(target, i);
-                //value += nnAdjustment(target, i);
-                weights.add(value / approximateTimeToTarget(groupLocations.get(id), target));
+                value += nnAdjustment(target, i);
+                weights.add(value / Math.sqrt(approximateTimeToTarget(groupLocations.get(id), target)));
             }
         }
         return weights;
@@ -144,7 +144,7 @@ public class Player extends sail.sim.Player {
         this.wind_direction = wind_direction;
         gen = new Random(seed);
 
-        String temp = "geo_center";
+        String temp = "speed_off_center";
         switch (temp) {
             case "geo_center" :
                 initial = new Point((double) 5,(double) 5);
@@ -167,8 +167,8 @@ public class Player extends sail.sim.Player {
                   }
                 }
                 break;
-            case "speed_center" :
-                initial = new Point(0,0);
+            case "speed_off_center" :
+                initial = new Point(5.0 + 2*wind_direction.x, 5.0 + 2*wind_direction.y);
                 break;
             default :
                 initial = new Point(gen.nextDouble()*10, gen.nextDouble()*10);
