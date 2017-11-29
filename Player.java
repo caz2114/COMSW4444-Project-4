@@ -18,12 +18,15 @@ public class Player extends sail.sim.Player {
     List<Point> groupLocations;
     int currentTargetIdx;
     HashMap<Point, List<Point>> nnMap;
+    
+    public int numOfTarget(Point target) {
+        return targets.indexOf(target);
+    }
 
     public void calculateNearestNeighbors() {
-        final int K = 5;
         for (int i = 0; i < this.targets.size(); i++) {
             Point target = targets.get(i);
-            PriorityQueue<Point> neighbors = new PriorityQueue<Point>(5, new Comparator<Point>() {
+            PriorityQueue<Point> neighbors = new PriorityQueue<Point>(this.targets.size() - 1, new Comparator<Point>() {
                 @Override
                 public int compare(Point o1, Point o2) {
                     return new Double(approximateTimeToTarget(target, o2)).compareTo(approximateTimeToTarget(target, o1));
@@ -35,16 +38,14 @@ public class Player extends sail.sim.Player {
                 }
                 Point neighbor = targets.get(j);
                 neighbors.add(neighbor);
-                if (neighbors.size() > K) {
-                    neighbors.poll();
-                }
             }
             List<Point> neighborsList = new ArrayList<Point>(neighbors);
             this.nnMap.put(target, neighborsList);
         }
     }
 
-    public boolean playerWillReachTargetFirst(int p, Point target, int targetNum) {
+    public boolean playerWillReachTargetFirst(int p, Point target) {
+        int targetNum = numOfTarget(target);
         if (visited_set.get(p).contains(targetNum)) {
             return true;
         }
@@ -72,27 +73,41 @@ public class Player extends sail.sim.Player {
         return Math.abs(Point.angleBetweenVectors(playerMove, towardTarget)) < Math.PI / 6.0;
     }
 
-    private int estimatedValue(Point target, int targetNum) {
-        if (targetNum == -1) {
-            targetNum = this.targets.indexOf(target);
-        }
-        if (visited_set.get(id).contains(targetNum)) {
+    private int estimatedValue(Point target) {
+        if (visited_set.get(id).contains(numOfTarget(target))) {
             return 0;
         }
         int value = numPlayers;
         for (int p = 0; p < numPlayers; p++) {
-            if (playerWillReachTargetFirst(p, target, targetNum)) {
+            if (playerWillReachTargetFirst(p, target)) {
                 value--;
             }
         }
         return value;
+    }
+    
+    private double estimatedAmortizedValue(Point from, Point target, int order) {
+        double amortizedValue = estimatedValue(target) / approximateTimeToTarget(from, target);
+        if (order == 1) {
+            return amortizedValue;
+        }
+        List<Point> neighbors = nnMap.get(target);
+        double max = 0.0;
+        for (Point neighbor : neighbors) {
+            double neighborVal = estimatedAmortizedValue(target, neighbor, order - 1);
+            if (neighborVal > max) {
+                max = neighborVal;
+            }
+        }
+        double UNCERTAINTY_FACTOR = 0.8;
+        return amortizedValue + UNCERTAINTY_FACTOR * max;
     }
 
     private double nnAdjustment(Point target, int targetNum) {
         List<Point> neighbors = nnMap.get(target);
         double total = 0.0;
         for (Point neighbor : neighbors) {
-            total += estimatedValue(neighbor, -1) / Math.sqrt(approximateTimeToTarget(target, neighbor));
+            total += estimatedValue(neighbor) / Math.sqrt(approximateTimeToTarget(target, neighbor));
         }
         return total / neighbors.size();
     }
@@ -104,9 +119,8 @@ public class Player extends sail.sim.Player {
                 weights.add(-1.0);
             } else {
                 Point target = targets.get(i);
-                int value = estimatedValue(target, i);
-                value += nnAdjustment(target, i);
-                weights.add(value / Math.sqrt(approximateTimeToTarget(groupLocations.get(id), target)));
+                double value = estimatedAmortizedValue(groupLocations.get(id), target, 2);
+                weights.add(value);
             }
         }
         return weights;
