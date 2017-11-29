@@ -86,28 +86,32 @@ public class Player extends sail.sim.Player {
         return value;
     }
     
-    private double estimatedAmortizedValue(Point from, Point target, int order) {
-        double amortizedValue = estimatedValue(target) / approximateTimeToTarget(from, target);
+    private double estimatedAmortizedValue(Point from, Point target, int order, List<Point> excluding, double distance, int value) {
         if (order == 1) {
-            return amortizedValue;
+            return value / Math.pow(distance, 2.0);
         }
         List<Point> neighbors = nnMap.get(target);
         double max = 0.0;
         for (Point neighbor : neighbors) {
-            double neighborVal = estimatedAmortizedValue(target, neighbor, order - 1);
+            if (excluding.contains(neighbor)) {
+                continue;
+            }
+            excluding.add(neighbor);
+            double neighborVal = estimatedAmortizedValue(target, neighbor, order - 1, excluding, distance + approximateTimeToTarget(target, neighbor), value + estimatedValue(neighbor));
+            excluding.remove(excluding.size() - 1);
             if (neighborVal > max) {
                 max = neighborVal;
             }
         }
-        double UNCERTAINTY_FACTOR = 0.8;
-        return amortizedValue + UNCERTAINTY_FACTOR * max;
+        double UNCERTAINTY_FACTOR = 1.0;
+        return max;
     }
 
     private double nnAdjustment(Point target, int targetNum) {
         List<Point> neighbors = nnMap.get(target);
         double total = 0.0;
         for (Point neighbor : neighbors) {
-            total += estimatedValue(neighbor) / Math.sqrt(approximateTimeToTarget(target, neighbor));
+            //total += estimatedValue(neighbor) / Math.pow(approximateTimeToTarget(target, neighbor), 1.0);
         }
         return total / neighbors.size();
     }
@@ -119,7 +123,7 @@ public class Player extends sail.sim.Player {
                 weights.add(-1.0);
             } else {
                 Point target = targets.get(i);
-                double value = estimatedAmortizedValue(groupLocations.get(id), target, 2);
+                double value = estimatedAmortizedValue(groupLocations.get(id), target, 2, new ArrayList<Point>(), approximateTimeToTarget(groupLocations.get(id), target), estimatedValue(target));
                 weights.add(value);
             }
         }
@@ -182,7 +186,7 @@ public class Player extends sail.sim.Player {
               }
               break;
           case "speed_off_center" :
-              initial = new Point(5.0 + 2*wind_direction.x, 5.0 + 2*wind_direction.y);
+              initial = new Point(5.0 + 5 * wind_direction.x, 5.0 -  5 * wind_direction.y);
               break;
           default :
               initial = new Point(gen.nextDouble()*10, gen.nextDouble()*10);
@@ -233,7 +237,7 @@ public class Player extends sail.sim.Player {
             }
 				  }
 				  currentTargetIdx = highestIdx;
-
+            
           return moveToTarget(dt);
         }
     }
