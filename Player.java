@@ -249,7 +249,8 @@ public class Player extends sail.sim.Player {
 		double straightAngle = Point.angleBetweenVectors(pos, wind_direction);
 		double bestDist = approximateTimeToTarget(pos, target);
 		Point bestPoint = target;
-		double perpAngle = Point.getNorm(wind_direction);
+		Point perp = Point.rotateCounterClockwise(wind_direction,1.59);
+		double perpAngle = Point.angleBetweenVectors(target, perp);
 
 		for(double i = straightAngle; i<=perpAngle; i+= .1){
 			double x = 2.5 * Math.cos(i) - 0.5;
