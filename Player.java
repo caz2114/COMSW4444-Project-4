@@ -202,27 +202,38 @@ public class Player extends sail.sim.Player {
           for (int j = 0; j < this.frequencyBucket.length; j++){
             double lower_x = ((double) i ) * 2.5;
             double upper_x = ((double) i + 1 ) * 2.5;
-            double lower_y = ((double) i ) * 2.5;
-            double upper_y = ((double) i + 1 ) * 2.5;
-            this.frequencyBucket[i][j] = new FrequencyBucket(lower_x, upper_x, lower_y, upper_y);
+            double lower_y = ((double) j ) * 2.5;
+            double upper_y = ((double) j + 1 ) * 2.5;
+            System.out.println(i+","+j+": (" +lower_x + ", "+ lower_y +") (" +upper_x + ", "+ upper_y +")");
+            this.frequencyBucket[i][j] = new FrequencyBucket(this.numPlayers, this.id, lower_x, upper_x, lower_y, upper_y);
           }
         }
-        addToFrequencyBuckey(targets);
 
-        for (int i = 0; i < this.frequencyBucket[0].length; i++){
-          for (int j = 0; j < this.frequencyBucket.length; j++){
-            System.out.print(this.frequencyBucket[i][j]);
-          }
-        }
+        initiateFrequencyBucket(targets);
+        printFrequencyBucket();
 
     }
 
-    public void addToFrequencyBuckey(List<Point> targets){
+    public void initiateFrequencyBucket(List<Point> targets){
       for (int i = 0; i < this.frequencyBucket[0].length; i++){
         for (int j = 0; j < this.frequencyBucket.length; j++){
-          for (Point target : targets){
-            this.frequencyBucket[i][j].inBucket(target, this.numPlayers);
-          }
+          this.frequencyBucket[i][j].initBucket(targets);
+        }
+      }
+    }
+
+    public void updateFrequencyBucket(Map<Integer, Set<Integer>> visited_set){
+      for (int i = 0; i < this.frequencyBucket[0].length; i++){
+        for (int j = 0; j < this.frequencyBucket.length; j++){
+          this.frequencyBucket[i][j].updateBucket(visited_set);
+        }
+      }
+    }
+
+    public void printFrequencyBucket(){
+      for (int i = 0; i < this.frequencyBucket[0].length; i++){
+        for (int j = 0; j < this.frequencyBucket.length; j++){
+          System.out.print(this.frequencyBucket[i][j]);
         }
       }
     }
@@ -296,6 +307,10 @@ public class Player extends sail.sim.Player {
     */
     @Override
     public void onMoveFinished(List<Point> group_locations, Map<Integer, Set<Integer>> visited_set) {
+        System.out.println(visited_set);
         this.visited_set = visited_set;
+        updateFrequencyBucket(visited_set);
+        printFrequencyBucket();
+
     }
 }
