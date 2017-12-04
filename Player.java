@@ -18,9 +18,16 @@ public class Player extends sail.sim.Player {
     List<Point> groupLocations;
     int currentTargetIdx;
     HashMap<Point, List<Point>> nnMap;
+    HashMap<Point, Integer> targetNumMap;
+    
+    private void buildTargetNumMap(List<Point> targets) {
+        for (int i = 0; i < targets.size(); i++) {
+            this.targetNumMap.put(targets.get(i), i);
+        }
+    }
     
     public int numOfTarget(Point target) {
-        return targets.indexOf(target);
+        return targetNumMap.get(target);
     }
 
     public void calculateNearestNeighbors() {
@@ -29,7 +36,7 @@ public class Player extends sail.sim.Player {
             PriorityQueue<Point> neighbors = new PriorityQueue<Point>(this.targets.size() - 1, new Comparator<Point>() {
                 @Override
                 public int compare(Point o1, Point o2) {
-                    return new Double(approximateTimeToTarget(target, o2)).compareTo(approximateTimeToTarget(target, o1));
+                    return new Double(approximateTimeToTarget(target, o1)).compareTo(approximateTimeToTarget(target, o2));
                 }
             });
             for (int j = 0; j < this.targets.size(); j++) {
@@ -39,8 +46,17 @@ public class Player extends sail.sim.Player {
                 Point neighbor = targets.get(j);
                 neighbors.add(neighbor);
             }
-            List<Point> neighborsList = new ArrayList<Point>(neighbors);
+            List<Point> neighborsList = new ArrayList<Point>(neighbors.size());
+            while (neighbors.size() > 0) {
+                neighborsList.add(neighbors.poll());
+            }
             this.nnMap.put(target, neighborsList);
+            
+            System.out.println("Target " + i + ": (" + target.x + ", " + target.y + ")");
+            for (Point neighbor : neighborsList) {
+                System.out.println("\t(" + neighbor.x + ", " + neighbor.y + ") - " + approximateTimeToTarget(target, neighbor));
+            }
+            System.out.println("--------------------");
         }
     }
 
@@ -129,6 +145,33 @@ public class Player extends sail.sim.Player {
         }
         return weights;
     }
+    
+    private Point getNextTarget() {
+        if (!visited_set.get(id).contains(currentTargetIdx)) {
+            return targets.get(currentTargetIdx);
+        } else {
+            List<Point> neighbors = nnMap.get(targets.get(currentTargetIdx));
+            System.out.println(neighbors.size());
+            for (int i = 0; i < neighbors.size(); i++) {
+                Point neighbor = neighbors.get(i);
+                int neighborNum = numOfTarget(neighbor);
+                if (visited_set.get(id).contains(neighborNum)) {
+                    System.out.println("Visited " + i + " already, ignoring");
+                    neighbors.remove(i);
+                    i--;
+                } else {
+                    System.out.println("Target " + i + " is next closest");
+                    currentTargetIdx = numOfTarget(neighbor);
+                    return neighbor;
+                }
+            }
+            for (Point neighbor : nnMap.get(targets.get(currentTargetIdx))) {
+                System.out.println("\t(" + neighbor.x + ", " + neighbor.y + ")");
+            }
+            currentTargetIdx = -1;
+            return initial;
+        }
+    }
 
     private List<Point> calculateMoves(List<Point> initialLocations, List<Point> finalLocations) {
         ArrayList<Point> moves = new ArrayList<Point>();
@@ -144,15 +187,15 @@ public class Player extends sail.sim.Player {
 	private int getClosestTarget(){
 		int smallestIdx = 0;
 
-	/*	for(int i = 1; i<targets.size(); i++){
+		for(int i = 1; i < targets.size(); i++){
 			double time = approximateTimeToTarget(initial, targets.get(i));
-			if(time<approximateTimeToTarget(groupLocations.get(id), targets.get(i))){
+			if(time < approximateTimeToTarget(initial, targets.get(smallestIdx))){
 				//smallest = time;
 				smallestIdx = i;
 			}
 
-		}*/
-		return 0;
+		}
+		return smallestIdx;
 	}
 
   @Override
@@ -186,7 +229,7 @@ public class Player extends sail.sim.Player {
               }
               break;
           case "speed_off_center" :
-              initial = new Point(5.0 + 5 * wind_direction.x, 5.0 -  5 * wind_direction.y);
+              initial = new Point(5.0 + 1 * wind_direction.x, 5.0 -  1 * wind_direction.y);
               break;
           default :
               initial = new Point(gen.nextDouble()*10, gen.nextDouble()*10);
@@ -200,6 +243,8 @@ public class Player extends sail.sim.Player {
     @Override
     public void init(List<Point> group_locations, List<Point> targets, int id) {
         this.targets = targets;
+        this.targetNumMap = new HashMap<Point, Integer>();
+        buildTargetNumMap(targets);
         this.id = id;
         this.numPlayers = group_locations.size();
         this.prevGroupLocations = group_locations;
@@ -229,15 +274,15 @@ public class Player extends sail.sim.Player {
             //this is if finished visiting all
             return Point.getDirection(group_locations.get(id), initial);
         } else{
-  				List<Double> weights = getTargetWeights();
-  				int highestIdx = 0;
-  				for(int i = 0; i < weights.size(); i++){
-  					if(weights.get(i) > weights.get(highestIdx)){
-  						highestIdx = i;
-            }
-				  }
-				  currentTargetIdx = highestIdx;
-            
+//  				List<Double> weights = getTargetWeights();
+//  				int highestIdx = 0;
+//  				for(int i = 0; i < weights.size(); i++){
+//  					if(weights.get(i) > weights.get(highestIdx)){
+//  						highestIdx = i;
+//            }
+//				  }
+//				  currentTargetIdx = highestIdx;
+//            
           return moveToTarget(dt);
         }
     }
@@ -249,7 +294,10 @@ public class Player extends sail.sim.Player {
 		}else{
 			pos = groupLocations.get(id);
     }
-		Point target = targets.get(currentTargetIdx);
+        Point target = targets.get(currentTargetIdx);
+        if (visited_set.get(id).contains(currentTargetIdx)) {
+            target = getNextTarget();
+        }
 		double straightAngle = Point.angleBetweenVectors(pos, wind_direction);
 		double bestDist = approximateTimeToTarget(pos, target);
 		Point bestPoint = target;
