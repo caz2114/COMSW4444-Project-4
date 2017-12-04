@@ -7,16 +7,16 @@ import java.util.*;
 
 public class FrequencyBucket {
   HashMap<Integer, Set<Integer>> contained_points;
+  ArrayList<Point> targets;
   int numPlayers;
   int playerId;
-  private int total_score = 0;
+  int total_score = 0;
   private double x_0;
   private double x_1;
   private double y_0;
   private double y_1;
 
   public FrequencyBucket(int numPlayers,int playerId, double x_0, double x_1, double y_0, double y_1){
-    System.out.println("here");
     this.numPlayers = numPlayers;
     this.playerId = playerId;
     this.x_0 = x_0;
@@ -24,6 +24,7 @@ public class FrequencyBucket {
     this.y_0 = y_0;
     this.y_1 = y_1;
     contained_points = new HashMap();
+    targets = new ArrayList<Point>();
   }
 
   public void initBucket(List<Point> targets){
@@ -31,6 +32,7 @@ public class FrequencyBucket {
       Point target = targets.get(i);
       if(target.x >= this.x_0 && target.x < this.x_1 && target.y >= this.y_0 && target.y < this.y_1){
         this.contained_points.put(i, new HashSet());
+        this.targets.add(target);
       }
     }
   }
@@ -51,7 +53,6 @@ public class FrequencyBucket {
   public void updateScore(){
     this.total_score = 0;
     for (Map.Entry<Integer, Set<Integer>> entry : this.contained_points.entrySet()) {
-      System.out.println(entry.getKey() + " = " + entry.getValue() + " size: "+((HashSet) entry.getValue()).size());
       HashSet<Integer> visited_player = (HashSet) entry.getValue();
       if (visited_player.contains(this.playerId)) continue;
       this.total_score += this.numPlayers - visited_player.size();

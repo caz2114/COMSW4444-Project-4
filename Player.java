@@ -18,6 +18,9 @@ public class Player extends sail.sim.Player {
     List<Point> groupLocations;
     int currentTargetIdx;
     HashMap<Point, List<Point>> nnMap;
+    FrequencyBucket currentBucket;
+    int currentBucketi;
+    int currentBucketj;
 
     FrequencyBucket[][] frequencyBucket;
 
@@ -125,6 +128,71 @@ public class Player extends sail.sim.Player {
         }
         return moves;
     }
+    
+    private Point getNextTarget() {
+        Point max = null;
+        double maxweight = 0.0;
+        for (Map.Entry<Integer, Set<Integer>> entry : currentBucket.contained_points.entrySet()) {
+            double value = estimatedValue(targets.get(entry.getKey()), entry.getKey());
+            double weight = value / approximateTimeToTarget(groupLocations.get(id), targets.get(entry.getKey()));
+            if (weight > maxweight) {
+                maxweight = weight;
+                max = targets.get(entry.getKey());
+            }
+        }
+        return max;
+    }
+    
+    private void getNextBucket() {
+        int initiali = (currentBucketi == 0) ? currentBucketi : currentBucketi - 1;
+        int initialj = (currentBucketj == 0) ? currentBucketj : currentBucketj - 1;
+        FrequencyBucket max = frequencyBucket[initiali][initialj];
+        int maxi = initiali;
+        int maxj = initialj;
+        for (int i = initiali; i < initiali + 3 && i < 4; i++) {
+            for (int j = initialj; j < initialj + 3 && j < 4; j++) {
+                FrequencyBucket bucket = frequencyBucket[i][j];
+                if (bucket.total_score > max.total_score) {
+                    max = bucket;
+                    maxi = i;
+                    maxj = j;
+                }
+            }
+        }
+        if (max.total_score == 0) {
+            for (int i = 0; i < 4; i++) {
+                for (int j = 0; j < 4; j++) {
+                    FrequencyBucket bucket = frequencyBucket[i][j];
+                    if (bucket.total_score > max.total_score) {
+                        max = bucket;
+                        maxi = i;
+                        maxj = j;
+                    }
+                }
+            }
+        }
+        if (max.total_score == 0) {
+            this.currentBucket = null;
+        }
+        this.currentBucket = max;
+        int currentBucketi = maxi;
+        int currentBucketj = maxj;
+    }
+    
+    private Point getNextDestination() {
+        if (currentBucket == null) {
+            return initial;
+        }
+        if (currentBucket.total_score > 0) {
+            return getNextTarget();
+        } else {
+            getNextBucket();
+            if (currentBucket == null) {
+                return initial;
+            }
+            return getNextTarget();
+        }
+    }
 
 	private int getClosestTarget(){
 		int smallestIdx = 0;
@@ -204,14 +272,13 @@ public class Player extends sail.sim.Player {
             double upper_x = ((double) i + 1 ) * 2.5;
             double lower_y = ((double) j ) * 2.5;
             double upper_y = ((double) j + 1 ) * 2.5;
-            System.out.println(i+","+j+": (" +lower_x + ", "+ lower_y +") (" +upper_x + ", "+ upper_y +")");
             this.frequencyBucket[i][j] = new FrequencyBucket(this.numPlayers, this.id, lower_x, upper_x, lower_y, upper_y);
           }
         }
 
         initiateFrequencyBucket(targets);
-        printFrequencyBucket();
-
+        updateFrequencyBucket(visited_set);
+        getNextBucket();
     }
 
     public void initiateFrequencyBucket(List<Point> targets){
@@ -254,27 +321,18 @@ public class Player extends sail.sim.Player {
             //this is if finished visiting all
             return Point.getDirection(group_locations.get(id), initial);
         } else{
-  				List<Double> weights = getTargetWeights();
-  				int highestIdx = 0;
-  				for(int i = 0; i < weights.size(); i++){
-  					if(weights.get(i) > weights.get(highestIdx)){
-  						highestIdx = i;
-            }
-				  }
-				  currentTargetIdx = highestIdx;
-
-          return moveToTarget(dt);
+          return moveToDestination(dt);
         }
     }
 
-	private Point moveToTarget(double dt){
+	private Point moveToDestination(double dt){
 		Point pos;
 		if(groupLocations == null){
 			pos = initial;
 		}else{
 			pos = groupLocations.get(id);
     }
-		Point target = targets.get(currentTargetIdx);
+		Point target = getNextDestination();
 		double straightAngle = Point.angleBetweenVectors(pos, wind_direction);
 		double bestDist = approximateTimeToTarget(pos, target);
 		Point bestPoint = target;
@@ -310,7 +368,5 @@ public class Player extends sail.sim.Player {
         System.out.println(visited_set);
         this.visited_set = visited_set;
         updateFrequencyBucket(visited_set);
-        printFrequencyBucket();
-
     }
 }
