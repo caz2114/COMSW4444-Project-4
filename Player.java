@@ -21,6 +21,8 @@ public class Player extends sail.sim.Player {
     FrequencyBucket currentBucket;
     int currentBucketi;
     int currentBucketj;
+    int currentTargetNum;
+    Point currentDestination;
 
     FrequencyBucket[][] frequencyBucket;
 
@@ -138,6 +140,7 @@ public class Player extends sail.sim.Player {
             if (weight > maxweight) {
                 maxweight = weight;
                 max = targets.get(entry.getKey());
+                currentTargetNum = entry.getKey();
             }
         }
         return max;
@@ -279,6 +282,7 @@ public class Player extends sail.sim.Player {
         initiateFrequencyBucket(targets);
         updateFrequencyBucket(visited_set);
         getNextBucket();
+        currentTargetNum = -1;
     }
 
     public void initiateFrequencyBucket(List<Point> targets){
@@ -332,7 +336,10 @@ public class Player extends sail.sim.Player {
 		}else{
 			pos = groupLocations.get(id);
     }
-		Point target = getNextDestination();
+        if (currentTargetNum == -1 || visited_set.get(id).contains(currentTargetNum)) {
+            currentDestination = getNextDestination();
+        }
+        Point target = currentDestination;
 		double straightAngle = Point.angleBetweenVectors(pos, wind_direction);
 		double bestDist = approximateTimeToTarget(pos, target);
 		Point bestPoint = target;
