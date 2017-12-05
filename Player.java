@@ -20,6 +20,11 @@ public class Player extends sail.sim.Player {
     HashMap<Point, List<Point>> nnMap;
     HashMap<Point, Integer> targetNumMap;
     
+    Point q1, q2, q3, q4;
+    double qdiff = Math.pow(2.5, 0.5);
+    
+    Point toQuadrant = null;
+    
     private void buildTargetNumMap(List<Point> targets) {
         for (int i = 0; i < targets.size(); i++) {
             this.targetNumMap.put(targets.get(i), i);
@@ -51,12 +56,6 @@ public class Player extends sail.sim.Player {
                 neighborsList.add(neighbors.poll());
             }
             this.nnMap.put(target, neighborsList);
-            
-            System.out.println("Target " + i + ": (" + target.x + ", " + target.y + ")");
-            for (Point neighbor : neighborsList) {
-                System.out.println("\t(" + neighbor.x + ", " + neighbor.y + ") - " + approximateTimeToTarget(target, neighbor));
-            }
-            System.out.println("--------------------");
         }
     }
 
@@ -146,27 +145,57 @@ public class Player extends sail.sim.Player {
         return weights;
     }
     
+    private boolean playerInQuadrant(int player, Point quadrant) {
+        Point loc = groupLocations.get(player);
+        
+        double left = quadrant.x - qdiff;
+        double right = quadrant.x + qdiff;
+        double top = quadrant.y - qdiff;
+        double bottom = quadrant.y + qdiff;
+        
+        return (loc.x >= left && loc.x <= right && loc.y >= top && loc.y <= bottom);
+    }
+    
+    private int playersInQuadrant(Point quadrant) {
+        int count = 0;
+        for (int p = 0; p < numPlayers; p++) {
+            if (playerInQuadrant(p, quadrant)) {
+                count++;
+            }
+        }
+        return count;
+    }
+    
+    private boolean pointTowardQuadrant(Point p, Point quadrant) {
+        Point loc = groupLocations.get(id);
+        Point d1 = Point.getDirection(p, loc);
+        Point d2 = Point.getDirection(quadrant, loc);
+        double angle = Point.angleBetweenVectors(d1, d2);
+        return Math.cos(angle) > Math.sqrt(0.5);
+    }
+    
     private Point getNextTarget() {
         if (!visited_set.get(id).contains(currentTargetIdx)) {
             return targets.get(currentTargetIdx);
         } else {
             List<Point> neighbors = nnMap.get(targets.get(currentTargetIdx));
-            System.out.println(neighbors.size());
             for (int i = 0; i < neighbors.size(); i++) {
                 Point neighbor = neighbors.get(i);
                 int neighborNum = numOfTarget(neighbor);
                 if (visited_set.get(id).contains(neighborNum)) {
-                    System.out.println("Visited " + i + " already, ignoring");
                     neighbors.remove(i);
                     i--;
                 } else {
-                    System.out.println("Target " + i + " is next closest");
-                    currentTargetIdx = numOfTarget(neighbor);
-                    return neighbor;
+                    if (toQuadrant == null) {
+                        currentTargetIdx = numOfTarget(neighbor);
+                        return neighbor;
+                    } else {
+                        if (pointTowardQuadrant(neighbor, toQuadrant)) {
+                            currentTargetIdx = numOfTarget(neighbor);
+                            return neighbor;
+                        }
+                    }
                 }
-            }
-            for (Point neighbor : nnMap.get(targets.get(currentTargetIdx))) {
-                System.out.println("\t(" + neighbor.x + ", " + neighbor.y + ")");
             }
             currentTargetIdx = -1;
             return initial;
@@ -197,6 +226,67 @@ public class Player extends sail.sim.Player {
 		}
 		return smallestIdx;
 	}
+
+    private boolean isEarlyGame() {
+        int total = 0;
+        for (Map.Entry<Integer, Set<Integer>> entry : visited_set.entrySet()) {
+            total += entry.getValue().size();
+        }
+        double average = ((double) total) / numPlayers;
+        return average < targets.size() * 0.25;
+    }
+    
+    private Point getQuadrant() {
+        Point loc = groupLocations.get(id);
+        if (loc.x < 5.0 && loc.y < 5.0) {
+            return q1;
+        } else if (loc.x >= 5.0 && loc.y < 5.0) {
+            return q2;
+        } else if (loc.x < 5.0 && loc.y >= 5.0) {
+            return q3;
+        } else {
+            return q4;
+        }
+    }
+    
+    private Point bestQuadrant() {
+        Point best = q1;
+        int num = playersInQuadrant(q1);
+        
+        int nq2 = playersInQuadrant(q2);
+        if (nq2 < num) {
+            num = nq2;
+            best = q2;
+        }
+        int nq3 = playersInQuadrant(q3);
+        if (nq3 < num) {
+            num = nq3;
+            best = q3;
+        }
+        int nq4 = playersInQuadrant(q2);
+        if (nq4 < num) {
+            num = nq4;
+            best = q4;
+        }
+        
+        return best;
+    }
+    
+    private boolean inCrowdedArea() {
+        int count = 0;
+        for (int p = 0; p < numPlayers; p++) {
+            if (p == id) {
+                continue;
+            }
+            Point loc1 = groupLocations.get(id);
+            Point loc2 = groupLocations.get(p);
+            double dist = Point.getDistance(loc1, loc2);
+            if (dist <= qdiff) {
+                count++;
+            }
+        }
+        return count >= 3;
+    }
 
   @Override
   public Point chooseStartingLocation(Point wind_direction, Long seed, int t) {
@@ -229,7 +319,7 @@ public class Player extends sail.sim.Player {
               }
               break;
           case "speed_off_center" :
-              initial = new Point(5.0 + 1 * wind_direction.x, 5.0 -  1 * wind_direction.y);
+              initial = new Point(5.0 + 2 * wind_direction.x, 5.0 -  2 * wind_direction.y);
               break;
           default :
               initial = new Point(gen.nextDouble()*10, gen.nextDouble()*10);
@@ -256,6 +346,10 @@ public class Player extends sail.sim.Player {
 		    this.currentTargetIdx = getClosestTarget();
         this.nnMap = new HashMap<Point, List<Point>>();
         calculateNearestNeighbors();
+        this.q1 = new Point(5.0 - qdiff, 5.0 - qdiff);
+        this.q2 = new Point(5.0 + qdiff, 5.0 - qdiff);
+        this.q3 = new Point(5.0 - qdiff, 5.0 + qdiff);
+        this.q4 = new Point(5.0 + qdiff, 5.0 + qdiff);
     }
 
     @Override
@@ -282,7 +376,20 @@ public class Player extends sail.sim.Player {
 //            }
 //				  }
 //				  currentTargetIdx = highestIdx;
-//            
+//
+            if (toQuadrant != null) {
+                if (!isEarlyGame()) {
+                    toQuadrant = null;
+                } else if (Point.getDistance(groupLocations.get(id), toQuadrant) < qdiff / 2) {
+                    toQuadrant = null;
+                }
+            } else if (isEarlyGame()) {
+                Point quadrant = getQuadrant();
+                if (inCrowdedArea()) {//playersInQuadrant(quadrant) > numPlayers / 4) {
+                    System.out.println("Its crowded!");
+                    toQuadrant = bestQuadrant();
+                }
+            }
           return moveToTarget(dt);
         }
     }
