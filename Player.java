@@ -23,7 +23,19 @@ public class Player extends sail.sim.Player {
     Point q1, q2, q3, q4;
     double qdiff = Math.pow(2.5, 0.5);
     
+    int maxValue;
+    
     Point toQuadrant = null;
+    
+    private int valueOfTarget(Point target) {
+        int value = numPlayers;
+        for (int p = 0; p < numPlayers; p++) {
+            if (visited_set.get(p).contains(numOfTarget(target))) {
+                value--;
+            }
+        }
+        return value;
+    }
     
     private void buildTargetNumMap(List<Point> targets) {
         for (int i = 0; i < targets.size(); i++) {
@@ -175,26 +187,81 @@ public class Player extends sail.sim.Player {
     }
     
     private Point getNextTarget() {
+        if (toQuadrant != null && visited_set.get(id).contains(numOfTarget(toQuadrant))) {
+            toQuadrant = null;
+        }
         if (!visited_set.get(id).contains(currentTargetIdx)) {
             return targets.get(currentTargetIdx);
         } else {
+            int maxAvailableValue = 0;
+            Point maxAvailableTarget = null;
+            
             List<Point> neighbors = nnMap.get(targets.get(currentTargetIdx));
+//            for (int i = 0; i < neighbors.size(); i++) {
+//                if (i == 0 && toQuadrant != null) {
+//                    break;
+//                }
+//                Point neighbor = neighbors.get(i);
+//                int neighborNum = numOfTarget(neighbor);
+//                int value = valueOfTarget(neighbor);
+//                if (visited_set.get(id).contains(neighborNum)) {
+//                    neighbors.remove(i);
+//                    i--;
+//                } else {
+//                    if (value == numPlayers) {
+//                        toQuadrant = neighbor;
+//                        break;
+//                    }
+//                }
+//            }
+            
+            //if (toQuadrant != null) System.out.println("Headed to (" + toQuadrant.x + ", " + toQuadrant.y + ")");
+            Point closest = null;
+            Point closestMax = null;
+            int maxValSeen = numPlayers - 1;
             for (int i = 0; i < neighbors.size(); i++) {
                 Point neighbor = neighbors.get(i);
                 int neighborNum = numOfTarget(neighbor);
+                int value = valueOfTarget(neighbor);
                 if (visited_set.get(id).contains(neighborNum)) {
                     neighbors.remove(i);
                     i--;
                 } else {
                     if (toQuadrant == null) {
-                        currentTargetIdx = numOfTarget(neighbor);
-                        return neighbor;
+                        if (maxValue <= 1) {
+                            currentTargetIdx = numOfTarget(neighbor);
+                            return neighbor;
+                        } else {
+                            if (closest == null) {
+                                closest = neighbor;
+                            }
+                            if (valueOfTarget(neighbor) > maxValSeen) {
+                                closestMax = neighbor;
+                            }
+                        }
                     } else {
                         if (pointTowardQuadrant(neighbor, toQuadrant)) {
                             currentTargetIdx = numOfTarget(neighbor);
                             return neighbor;
                         }
                     }
+                }
+            }
+            if (closest == null) {
+                currentTargetIdx = -1;
+                return initial;
+            }
+            if (closestMax == null) {
+                maxValue = 0;
+                currentTargetIdx = numOfTarget(closest);
+                return closest;
+            } else if (closest != null) {
+                if (approximateTimeToTarget(groupLocations.get(id), closest) < approximateTimeToTarget(groupLocations.get(id), closestMax) / 2) {
+                    currentTargetIdx = numOfTarget(closest);
+                    return closest;
+                }   else {
+                    currentTargetIdx = numOfTarget(closestMax);
+                    return closestMax;
                 }
             }
             currentTargetIdx = -1;
@@ -337,6 +404,7 @@ public class Player extends sail.sim.Player {
         buildTargetNumMap(targets);
         this.id = id;
         this.numPlayers = group_locations.size();
+        this.maxValue = numPlayers;
         this.prevGroupLocations = group_locations;
         this.visited_set = new HashMap<>();
         for (int i = 0; i < numPlayers; i++) {
@@ -386,8 +454,8 @@ public class Player extends sail.sim.Player {
             } else if (isEarlyGame()) {
                 Point quadrant = getQuadrant();
                 if (inCrowdedArea()) {//playersInQuadrant(quadrant) > numPlayers / 4) {
-                    System.out.println("Its crowded!");
-                    toQuadrant = bestQuadrant();
+                    //System.out.println("Its crowded!");
+                    //toQuadrant = bestQuadrant();
                 }
             }
           return moveToTarget(dt);
