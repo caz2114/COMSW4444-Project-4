@@ -406,7 +406,7 @@ public class Player extends sail.sim.Player {
             } else if (isEarlyGame()) {
                 Point quadrant = getQuadrant();
                 if (inCrowdedArea()) {//playersInQuadrant(quadrant) > numPlayers / 4) {
-                    System.out.println("Its crowded!");
+                    //System.out.println("Its crowded!");
                     toQuadrant = bestQuadrant();
                 }
             }
@@ -482,7 +482,7 @@ public class Player extends sail.sim.Player {
     }
 	
 	private Point moveHelper(List<Point> group_locations, Point target, double dt, boolean justHitATarget) {
-		System.out.println("just checking " +target.x +" " +target.y);
+		//System.out.println("just checking " +target.x +" " +target.y);
         if (dt <= 0.004) {
             if (justHitATarget) {
                 double x1 = group_locations.get(id).x;
@@ -575,7 +575,7 @@ public class Player extends sail.sim.Player {
     }
 
 	private Point computeNextDirection(Point target, double dt) {
-		System.out.println(target.x+" "+target.y);
+		//System.out.println(target.x+" "+target.y);
         Point directionToTarget = Point.getDirection(this.currentLocation, target);
         Point perpendicularLeftDirection = Point.rotateCounterClockwise(directionToTarget, Math.PI/2.0);
         Point perpendicularRightDirection = Point.rotateCounterClockwise(directionToTarget, -Math.PI/2.0);
