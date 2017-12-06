@@ -26,6 +26,20 @@ public class Player extends sail.sim.Player {
     int maxValue;
     
     Point toQuadrant = null;
+	
+	Point currentLocation;
+    double BESTANGLE = 0.511337; 
+    double BESTANGLE_UPWIND = 0.68867265359;
+    Point bestDirection1;
+    Point bestDirection2;
+    Point bestDirection1_upwind;
+    Point bestDirection2_upwind;
+    double timeOnBestDirection1;
+    double timeOnBestDirection2;
+    double timeSpent;
+    boolean upwind;
+    boolean lastMoveIs1 = true;
+	boolean justHitATarget = false;
     
     private int valueOfTarget(Point target) {
         int value = numPlayers;
@@ -191,8 +205,11 @@ public class Player extends sail.sim.Player {
             toQuadrant = null;
         }
         if (!visited_set.get(id).contains(currentTargetIdx)) {
-            return targets.get(currentTargetIdx);
+			justHitATarget = false;
+		   return targets.get(currentTargetIdx);
+			
         } else {
+			justHitATarget = true;
             int maxAvailableValue = 0;
             Point maxAvailableTarget = null;
             
@@ -418,12 +435,15 @@ public class Player extends sail.sim.Player {
         this.q2 = new Point(5.0 + qdiff, 5.0 - qdiff);
         this.q3 = new Point(5.0 - qdiff, 5.0 + qdiff);
         this.q4 = new Point(5.0 + qdiff, 5.0 + qdiff);
+		this.currentLocation = group_locations.get(id);
+		initializeBestSpeedVector();
     }
 
     @Override
     public Point move(List<Point> group_locations, int id, double dt, long time_remaining_ms) {
         this.groupMoves = calculateMoves(this.prevGroupLocations, group_locations);
         this.groupLocations = group_locations;
+		this.currentLocation = group_locations.get(id);
         // testing timeouts...
         // try {
         //     TimeUnit.MILLISECONDS.sleep(1);
@@ -458,11 +478,11 @@ public class Player extends sail.sim.Player {
                     //toQuadrant = bestQuadrant();
                 }
             }
-          return moveToTarget(dt);
+          return moveToTarget(group_locations, dt);
         }
     }
 
-	private Point moveToTarget(double dt){
+	private Point moveToTarget(List<Point> group_locations, double dt){
 		Point pos;
 		if(groupLocations == null){
 			pos = initial;
@@ -473,7 +493,8 @@ public class Player extends sail.sim.Player {
         if (visited_set.get(id).contains(currentTargetIdx)) {
             target = getNextTarget();
         }
-		double straightAngle = Point.angleBetweenVectors(pos, wind_direction);
+		return moveHelper(group_locations,target, dt, justHitATarget);
+		/*double straightAngle = Point.angleBetweenVectors(pos, wind_direction);
 		double bestDist = approximateTimeToTarget(pos, target);
 		Point bestPoint = target;
 		Point perp = Point.rotateCounterClockwise(wind_direction,1.59);
@@ -498,7 +519,7 @@ public class Player extends sail.sim.Player {
 
 		return Point.getDirection(groupLocations.get(id), bestPoint);
 
-
+		*/
 	}
 
     /**
@@ -507,5 +528,162 @@ public class Player extends sail.sim.Player {
     @Override
     public void onMoveFinished(List<Point> group_locations, Map<Integer, Set<Integer>> visited_set) {
         this.visited_set = visited_set;
+    }
+	
+		
+	
+	private double getSpeedRelativeToWind(double angle) {
+        double x = 2.5 * Math.cos(angle + Math.PI) - 0.5;
+        double y = 5 * Math.sin(angle + Math.PI);
+        return Math.sqrt((x)*(x) + (y)*(y));
+    }
+	
+	private void initializeBestSpeedVector() {
+        double windAngle = Math.atan2(this.wind_direction.y, this.wind_direction.x);
+        
+        double speed = getSpeedRelativeToWind(BESTANGLE);
+        this.bestDirection1 = new Point(speed * Math.cos(windAngle + BESTANGLE), speed * Math.sin(windAngle + BESTANGLE));
+        this.bestDirection2 = new Point(speed * Math.cos(windAngle - BESTANGLE), speed * Math.sin(windAngle - BESTANGLE));
+        
+        speed = getSpeedRelativeToWind(Math.PI + BESTANGLE_UPWIND);
+        this.bestDirection1_upwind = new Point(speed * Math.cos(windAngle + Math.PI + BESTANGLE_UPWIND), speed * Math.sin(windAngle + Math.PI + BESTANGLE_UPWIND));
+        this.bestDirection2_upwind = new Point(speed * Math.cos(windAngle + Math.PI - BESTANGLE_UPWIND), speed * Math.sin(windAngle + Math.PI - BESTANGLE_UPWIND));
+    }
+	
+	private Point moveHelper(List<Point> group_locations, Point target, double dt, boolean justHitATarget) {
+		//System.out.println("just checking " +target.x +" " +target.y);
+        if (dt <= 0.004) {
+            if (justHitATarget) {
+                double x1 = group_locations.get(id).x;
+                double y1 = group_locations.get(id).y; 
+                double x = target.x;
+                double y = target.y;
+                Point newTarget = new Point(x,y);
+                Point direction = Point.getDirection(this.currentLocation, newTarget);
+
+                double theta = Point.angleBetweenVectors(direction, wind_direction);
+    
+                if (theta <= BESTANGLE ||
+                    theta >= -BESTANGLE + 2*Math.PI) {
+                    timeOnBestDirection1 = (direction.y - bestDirection2.y/bestDirection2.x * direction.x)/(bestDirection1.y - bestDirection2.y/bestDirection2.x * bestDirection1.x);
+                    timeOnBestDirection2 = (direction.y - bestDirection1.y/bestDirection1.x * direction.x)/(bestDirection2.y - bestDirection1.y/bestDirection1.x * bestDirection2.x);
+                    this.upwind = false;
+                } else if (theta >= Math.PI - BESTANGLE_UPWIND &&
+                    theta <= Math.PI + BESTANGLE_UPWIND) {
+                    timeOnBestDirection1 = (direction.y - bestDirection2_upwind.y/bestDirection2_upwind.x * direction.x)/(bestDirection1_upwind.y - bestDirection2_upwind.y/bestDirection2_upwind.x * bestDirection1_upwind.x);
+                    timeOnBestDirection2 = (direction.y - bestDirection1_upwind.y/bestDirection1_upwind.x * direction.x)/(bestDirection2_upwind.y - bestDirection1_upwind.y/bestDirection1_upwind.x * bestDirection2_upwind.x);
+                    this.upwind = true;
+                } 
+                if (upwind) {
+                    return bestDirection1_upwind;
+                }
+                else {
+                    return bestDirection1;
+                }
+            }
+            else {
+                if (timeOnBestDirection1 > dt && timeOnBestDirection2 > dt) {
+                    return alternateBetween1And2(group_locations, dt);
+                }
+                else if (timeOnBestDirection1 > dt) {
+                    timeOnBestDirection1 -= dt;
+                    return this.upwind ? bestDirection1_upwind : bestDirection1;
+                }
+                else if (timeOnBestDirection2 > dt) {
+                    timeOnBestDirection2 -= dt;
+                    return this.upwind ? bestDirection2_upwind : bestDirection2;
+                }
+                else {
+                    return computeNextDirection(target, dt);
+                }
+            }
+        }
+        else {
+            return computeNextDirection(target, dt);
+        }
+    }
+
+	private Point alternateBetween1And2(List<Point> group_locations, double dt) {
+        this.currentLocation = group_locations.get(id);
+        Point move;
+        Point newLocation = new Point(bestDirection1.x * dt + group_locations.get(id).x, bestDirection1.y * dt + group_locations.get(id).y);
+        Point newLocation2 = new Point(bestDirection2.x * dt + group_locations.get(id).x, bestDirection2.y * dt + group_locations.get(id).y);
+
+        if (lastMoveIs1 && upwind) {
+            timeOnBestDirection2 -= dt;
+            move = bestDirection2_upwind;
+        }
+        else if (lastMoveIs1 && !upwind) {
+            timeOnBestDirection2 -= dt;
+            move = bestDirection2;
+        }
+        else if (!lastMoveIs1 && upwind) {
+            timeOnBestDirection1 -= dt;
+            move = bestDirection1_upwind;
+        }
+        else {
+            timeOnBestDirection1 -= dt;
+            move = bestDirection1;
+        }
+        lastMoveIs1 = !lastMoveIs1;
+        return move;
+    }
+	
+	private Point computeExpectedPosition(Point moveDirection, double dt) {
+        Point unitMoveDirection = Point.getUnitVector(moveDirection);
+        double speed = Simulator.getSpeed(unitMoveDirection, this.wind_direction);
+        Point distanceMoved = new Point(
+                unitMoveDirection.x * speed * dt,
+                unitMoveDirection.y * speed * dt
+        );
+        Point nextLocation = Point.sum(this.currentLocation, distanceMoved);
+        if (nextLocation.x < 0 || nextLocation.y > 10 || nextLocation.y < 0 || nextLocation.x > 10) {
+            return this.currentLocation;
+        }
+        return nextLocation;
+    }
+
+	private Point computeNextDirection(Point target, double dt) {
+		//System.out.println(target.x+" "+target.y);
+        Point directionToTarget = Point.getDirection(this.currentLocation, target);
+        Point perpendicularLeftDirection = Point.rotateCounterClockwise(directionToTarget, Math.PI/2.0);
+        Point perpendicularRightDirection = Point.rotateCounterClockwise(directionToTarget, -Math.PI/2.0);
+        return findBestDirection(perpendicularLeftDirection, perpendicularRightDirection, target, 100, dt);
+    }
+	
+	private Point findBestDirection(Point leftDirection, Point rightDirection, Point target, int numSteps,
+                                    double dt) {
+        // First, check if the target is reachable in one time step from our current position.
+        double currentDistanceToTarget = Point.getDistance(this.currentLocation, target);
+        Point directionToTarget = Point.getDirection(this.currentLocation, target);
+        double speedToTarget = Simulator.getSpeed(directionToTarget, this.wind_direction);
+        double distanceWeCanTraverse = speedToTarget * dt;
+        double distanceTo10MeterAroundTarget = currentDistanceToTarget-0.01;
+        if (distanceWeCanTraverse > distanceTo10MeterAroundTarget) {
+            return directionToTarget;
+        }
+
+        // If that is not the case, choose the direction that will get us to a point where the time to reach
+        // the target is minimal, if going directly to the target.
+        double minTimeToTarget = Double.POSITIVE_INFINITY;
+        Point minTimeToTargetDirection = null;
+
+        double totalRadians = Point.angleBetweenVectors(leftDirection, rightDirection);
+        double radiansStep = totalRadians / (double) numSteps;
+        for (double i = 0.0; i < totalRadians; i+=radiansStep) {
+            Point direction = Point.rotateCounterClockwise(rightDirection, i);
+            Point expectedPosition = computeExpectedPosition(direction, dt);
+            Point nextDirection = Point.getDirection(expectedPosition, target);
+            double distance = Point.getDistance(expectedPosition, target);
+            double speed = Simulator.getSpeed(nextDirection, this.wind_direction);
+            double timeToTarget = distance / speed;
+
+            if (timeToTarget < minTimeToTarget) {
+                minTimeToTargetDirection = direction;
+                minTimeToTarget = timeToTarget;
+            }
+        }
+
+        return minTimeToTargetDirection;
     }
 }
