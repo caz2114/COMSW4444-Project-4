@@ -39,7 +39,6 @@ public class Player extends sail.sim.Player {
     double timeSpent;
     boolean upwind;
     boolean lastMoveIs1 = true;
-	boolean justHitATarget = false;
     
     private int valueOfTarget(Point target) {
         int value = numPlayers;
@@ -205,11 +204,9 @@ public class Player extends sail.sim.Player {
             toQuadrant = null;
         }
         if (!visited_set.get(id).contains(currentTargetIdx)) {
-			justHitATarget = false;
 		   return targets.get(currentTargetIdx);
 			
         } else {
-			justHitATarget = true;
             int maxAvailableValue = 0;
             Point maxAvailableTarget = null;
             
@@ -493,33 +490,8 @@ public class Player extends sail.sim.Player {
         if (visited_set.get(id).contains(currentTargetIdx)) {
             target = getNextTarget();
         }
-		return moveHelper(group_locations,target, dt, justHitATarget);
-		/*double straightAngle = Point.angleBetweenVectors(pos, wind_direction);
-		double bestDist = approximateTimeToTarget(pos, target);
-		Point bestPoint = target;
-		Point perp = Point.rotateCounterClockwise(wind_direction,1.59);
-		double perpAngle = Point.angleBetweenVectors(target, perp);
-
-		for(double i = straightAngle; i<=perpAngle; i+= .1){
-			double x = 2.5 * Math.cos(i) - 0.5;
-			double y = 5 * Math.sin(i);
-			double newX = pos.x + (x*dt);
-			double newY = pos.y + (y*dt);
-
-			Point p = new Point(newX, newY);
-
-			double testDist = approximateTimeToTarget(pos, p);
-			testDist += approximateTimeToTarget(p, target);
-
-			if(testDist <= bestDist){
-				bestDist = testDist;
-				bestPoint = p;
-			}
-		}
-
-		return Point.getDirection(groupLocations.get(id), bestPoint);
-
-		*/
+		
+		return computeNextDirection(target, dt);
 	}
 
     /**
@@ -529,7 +501,8 @@ public class Player extends sail.sim.Player {
     public void onMoveFinished(List<Point> group_locations, Map<Integer, Set<Integer>> visited_set) {
         this.visited_set = visited_set;
     }
-	
+
+	/*below are methods to aid in movement borrowed from g1*/
 		
 	
 	private double getSpeedRelativeToWind(double angle) {
@@ -548,59 +521,6 @@ public class Player extends sail.sim.Player {
         speed = getSpeedRelativeToWind(Math.PI + BESTANGLE_UPWIND);
         this.bestDirection1_upwind = new Point(speed * Math.cos(windAngle + Math.PI + BESTANGLE_UPWIND), speed * Math.sin(windAngle + Math.PI + BESTANGLE_UPWIND));
         this.bestDirection2_upwind = new Point(speed * Math.cos(windAngle + Math.PI - BESTANGLE_UPWIND), speed * Math.sin(windAngle + Math.PI - BESTANGLE_UPWIND));
-    }
-	
-	private Point moveHelper(List<Point> group_locations, Point target, double dt, boolean justHitATarget) {
-		//System.out.println("just checking " +target.x +" " +target.y);
-        if (dt <= 0.004) {
-            if (justHitATarget) {
-                double x1 = group_locations.get(id).x;
-                double y1 = group_locations.get(id).y; 
-                double x = target.x;
-                double y = target.y;
-                Point newTarget = new Point(x,y);
-                Point direction = Point.getDirection(this.currentLocation, newTarget);
-
-                double theta = Point.angleBetweenVectors(direction, wind_direction);
-    
-                if (theta <= BESTANGLE ||
-                    theta >= -BESTANGLE + 2*Math.PI) {
-                    timeOnBestDirection1 = (direction.y - bestDirection2.y/bestDirection2.x * direction.x)/(bestDirection1.y - bestDirection2.y/bestDirection2.x * bestDirection1.x);
-                    timeOnBestDirection2 = (direction.y - bestDirection1.y/bestDirection1.x * direction.x)/(bestDirection2.y - bestDirection1.y/bestDirection1.x * bestDirection2.x);
-                    this.upwind = false;
-                } else if (theta >= Math.PI - BESTANGLE_UPWIND &&
-                    theta <= Math.PI + BESTANGLE_UPWIND) {
-                    timeOnBestDirection1 = (direction.y - bestDirection2_upwind.y/bestDirection2_upwind.x * direction.x)/(bestDirection1_upwind.y - bestDirection2_upwind.y/bestDirection2_upwind.x * bestDirection1_upwind.x);
-                    timeOnBestDirection2 = (direction.y - bestDirection1_upwind.y/bestDirection1_upwind.x * direction.x)/(bestDirection2_upwind.y - bestDirection1_upwind.y/bestDirection1_upwind.x * bestDirection2_upwind.x);
-                    this.upwind = true;
-                } 
-                if (upwind) {
-                    return bestDirection1_upwind;
-                }
-                else {
-                    return bestDirection1;
-                }
-            }
-            else {
-                if (timeOnBestDirection1 > dt && timeOnBestDirection2 > dt) {
-                    return alternateBetween1And2(group_locations, dt);
-                }
-                else if (timeOnBestDirection1 > dt) {
-                    timeOnBestDirection1 -= dt;
-                    return this.upwind ? bestDirection1_upwind : bestDirection1;
-                }
-                else if (timeOnBestDirection2 > dt) {
-                    timeOnBestDirection2 -= dt;
-                    return this.upwind ? bestDirection2_upwind : bestDirection2;
-                }
-                else {
-                    return computeNextDirection(target, dt);
-                }
-            }
-        }
-        else {
-            return computeNextDirection(target, dt);
-        }
     }
 
 	private Point alternateBetween1And2(List<Point> group_locations, double dt) {
